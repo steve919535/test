@@ -7,8 +7,7 @@ import '../../data/trip.dart';
 import '../../data/trip_repository.dart';
 import '../../services/export_service.dart';
 import '../../services/tracking_controller.dart';
-
-enum _RangeOption { allTime, thisMonth }
+import '../trips/widgets/trip_filter_sheet.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -45,27 +44,20 @@ class SettingsScreen extends StatelessWidget {
     }
   }
 
+  List<Trip> _tripsInRange(TripRepository repo, TripFilterSelection selection) {
+    final (from, to) = selection.effectiveRange;
+    return repo.filteredTrips(category: selection.category, from: from, to: to);
+  }
+
   Future<void> _export(BuildContext context, {required bool asPdf}) async {
     final repo = context.read<TripRepository>();
-    final selection = await showModalBottomSheet<_ExportSelection>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => const _ExportOptionsSheet(),
+    final selection = await showTripFilterSheet(
+      context,
+      TripFilterSelection.none,
     );
     if (selection == null) return;
 
-    final now = DateTime.now();
-    final from = selection.range == _RangeOption.thisMonth
-        ? DateTime(now.year, now.month)
-        : null;
-    final trips = repo.trips.where((t) {
-      if (from != null && t.startTime.isBefore(from)) return false;
-      if (selection.category != null && t.category != selection.category) {
-        return false;
-      }
-      return true;
-    }).toList();
-
+    final trips = _tripsInRange(repo, selection);
     if (trips.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -77,6 +69,42 @@ class SettingsScreen extends StatelessWidget {
 
     if (asPdf) {
       await ExportService.sharePdf(trips);
+    } else {
+      await ExportService.shareCsv(trips);
+    }
+  }
+
+  Future<void> _exportBusinessTaxReport(
+    BuildContext context, {
+    required bool asPdf,
+  }) async {
+    final repo = context.read<TripRepository>();
+    const initial = TripFilterSelection(
+      category: TripCategory.business,
+      datePreset: TripDatePreset.thisYear,
+    );
+    final selection = await showTripFilterSheet(
+      context,
+      initial,
+      lockCategory: true,
+    );
+    if (selection == null) return;
+
+    final trips = _tripsInRange(repo, selection);
+    if (trips.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No business trips in that period.')),
+        );
+      }
+      return;
+    }
+
+    if (asPdf) {
+      await ExportService.shareBusinessTaxReportPdf(
+        trips,
+        periodLabel: selection.dateRangeLabel,
+      );
     } else {
       await ExportService.shareCsv(trips);
     }
@@ -118,14 +146,40 @@ class SettingsScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.table_chart_outlined),
             title: const Text('Export CSV'),
-            subtitle: const Text('Spreadsheet-friendly log of every trip'),
+            subtitle: const Text(
+              'Spreadsheet-friendly log of trips, filtered however you like',
+            ),
             onTap: () => _export(context, asPdf: false),
           ),
           ListTile(
             leading: const Icon(Icons.picture_as_pdf_outlined),
             title: const Text('Export PDF'),
-            subtitle: const Text('Printable mileage log with a summary'),
+            subtitle: const Text(
+              'Printable mileage log with a business/personal summary',
+            ),
             onTap: () => _export(context, asPdf: true),
+          ),
+          const Divider(),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: Text(
+              'Tax records',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.receipt_long_outlined),
+            title: const Text('Export business trips (CSV)'),
+            subtitle: const Text('Business trips only, for a chosen period'),
+            onTap: () => _exportBusinessTaxReport(context, asPdf: false),
+          ),
+          ListTile(
+            leading: const Icon(Icons.summarize_outlined),
+            title: const Text('Export business trips (tax report)'),
+            subtitle: const Text(
+              'A signed-off PDF report of business trips, ready to hand to an accountant',
+            ),
+            onTap: () => _exportBusinessTaxReport(context, asPdf: true),
           ),
           const Divider(),
           const Padding(
@@ -134,79 +188,6 @@ class SettingsScreen extends StatelessWidget {
               'All trip data stays on this device. Nothing is uploaded, and there\'s no account required.',
               style: TextStyle(color: Colors.grey),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ExportSelection {
-  const _ExportSelection(this.range, this.category);
-  final _RangeOption range;
-  final TripCategory? category;
-}
-
-class _ExportOptionsSheet extends StatefulWidget {
-  const _ExportOptionsSheet();
-
-  @override
-  State<_ExportOptionsSheet> createState() => _ExportOptionsSheetState();
-}
-
-class _ExportOptionsSheetState extends State<_ExportOptionsSheet> {
-  _RangeOption _range = _RangeOption.thisMonth;
-  TripCategory? _category;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Export trips', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 16),
-          Text('Date range', style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: 8),
-          SegmentedButton<_RangeOption>(
-            segments: const [
-              ButtonSegment(
-                value: _RangeOption.thisMonth,
-                label: Text('This month'),
-              ),
-              ButtonSegment(
-                value: _RangeOption.allTime,
-                label: Text('All time'),
-              ),
-            ],
-            selected: {_range},
-            onSelectionChanged: (s) => setState(() => _range = s.first),
-          ),
-          const SizedBox(height: 16),
-          Text('Category', style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: 8),
-          SegmentedButton<TripCategory?>(
-            segments: const [
-              ButtonSegment(value: null, label: Text('All')),
-              ButtonSegment(
-                value: TripCategory.business,
-                label: Text('Business'),
-              ),
-              ButtonSegment(
-                value: TripCategory.personal,
-                label: Text('Personal'),
-              ),
-            ],
-            selected: {_category},
-            onSelectionChanged: (s) => setState(() => _category = s.first),
-          ),
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(context, _ExportSelection(_range, _category)),
-            child: const Text('Continue'),
           ),
         ],
       ),

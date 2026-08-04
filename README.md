@@ -20,7 +20,10 @@ server, no subscription.
   custom) and type (Business / Personal / Unclassified).
 - **Local storage only** — trips live in an on-device SQLite database.
 - **CSV and PDF export**, filterable by date range and category, shared
-  through the OS share sheet for tax time.
+  through the OS share sheet.
+- **Dedicated business tax report export** (CSV or a signature-ready PDF)
+  pre-filtered to business trips for a chosen period, separate from the
+  general export above.
 - Manual trip entry for anything automatic tracking missed.
 
 ## How automatic detection works
@@ -81,7 +84,10 @@ lib/
     notification_service.dart      trip-completed notification + tap routing
     export_service.dart            CSV / PDF generation + share sheet
   ui/                               screens (Trips, Dashboard, Settings)
-    trips/widgets/trip_filter_sheet.dart   date-range + type filter used by the Trips list
+    trips/widgets/trip_filter_sheet.dart   date-range + type filter, reused by
+                                            the Trips list, the general export,
+                                            and (with the category locked to
+                                            Business) the tax report export
 ```
 
 ## Running it
@@ -132,6 +138,18 @@ Android foreground-service isolate, or the iOS main isolate. Both call
 `NotificationService.instance` independently — each isolate has its own copy
 of that singleton and must `init()` the plugin itself before `show()` will
 work there.
+
+## About the business tax report
+
+`ExportService.shareBusinessTaxReportPdf` (Settings → Tax records) produces a
+PDF styled for handing to an accountant: a "Period: ..." line, a business-only
+trip table with a purpose/notes column, and a prepared-by/date signature line
+at the bottom. It deliberately does **not** claim to satisfy any specific tax
+authority's requirements — I don't know your jurisdiction and can't verify
+that, so it states plainly that it's a self-reported GPS record and that you
+should keep it alongside whatever documentation your tax authority actually
+requires. Treat the wording in `export_service.dart`'s disclaimer as a
+starting point to edit if you know your own jurisdiction's requirements.
 
 ## Reverse geocoding and "offline"
 

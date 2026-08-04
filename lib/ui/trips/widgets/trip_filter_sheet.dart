@@ -47,23 +47,30 @@ class TripFilterSelection {
     }
   }
 
+  /// Human-readable date range only (no category), e.g. "This year" or
+  /// "Jan 1 – Mar 31". Used both in [summary] and standalone wherever a
+  /// report needs to state its covered period (e.g. the business tax
+  /// report's "Period: ..." line).
+  String get dateRangeLabel {
+    switch (datePreset) {
+      case TripDatePreset.allTime:
+        return 'All time';
+      case TripDatePreset.thisMonth:
+        return 'This month';
+      case TripDatePreset.thisYear:
+        return 'This year';
+      case TripDatePreset.custom:
+        final range = customRange;
+        if (range == null) return 'All time';
+        final fmt = DateFormat.MMMd();
+        return '${fmt.format(range.start)} – ${fmt.format(range.end)}';
+    }
+  }
+
   String get summary {
     final parts = <String>[];
     if (category != null) parts.add(category!.label);
-    switch (datePreset) {
-      case TripDatePreset.allTime:
-        break;
-      case TripDatePreset.thisMonth:
-        parts.add('This month');
-      case TripDatePreset.thisYear:
-        parts.add('This year');
-      case TripDatePreset.custom:
-        final range = customRange;
-        if (range != null) {
-          final fmt = DateFormat.MMMd();
-          parts.add('${fmt.format(range.start)} – ${fmt.format(range.end)}');
-        }
-    }
+    if (datePreset != TripDatePreset.allTime) parts.add(dateRangeLabel);
     return parts.join(' · ');
   }
 
@@ -83,21 +90,28 @@ class TripFilterSelection {
 
 /// Opens the filter sheet and resolves with the user's new selection, or
 /// null if they dismissed it without confirming.
+///
+/// [lockCategory] hides the Type selector entirely and always returns
+/// [current]'s category unchanged -- used by the dedicated business-trip
+/// export, where the category isn't a choice, only the date range is.
 Future<TripFilterSelection?> showTripFilterSheet(
   BuildContext context,
-  TripFilterSelection current,
-) {
+  TripFilterSelection current, {
+  bool lockCategory = false,
+}) {
   return showModalBottomSheet<TripFilterSelection>(
     context: context,
     showDragHandle: true,
-    builder: (context) => _TripFilterSheet(initial: current),
+    builder: (context) =>
+        _TripFilterSheet(initial: current, lockCategory: lockCategory),
   );
 }
 
 class _TripFilterSheet extends StatefulWidget {
-  const _TripFilterSheet({required this.initial});
+  const _TripFilterSheet({required this.initial, this.lockCategory = false});
 
   final TripFilterSelection initial;
+  final bool lockCategory;
 
   @override
   State<_TripFilterSheet> createState() => _TripFilterSheetState();
@@ -169,42 +183,47 @@ class _TripFilterSheetState extends State<_TripFilterSheet> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          Text('Type', style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: 8),
-          SegmentedButton<TripCategory?>(
-            segments: const [
-              ButtonSegment(value: null, label: Text('All')),
-              ButtonSegment(
-                value: TripCategory.business,
-                label: Text('Business'),
-              ),
-              ButtonSegment(
-                value: TripCategory.personal,
-                label: Text('Personal'),
-              ),
-              ButtonSegment(
-                value: TripCategory.unclassified,
-                label: Text('Unset'),
-              ),
-            ],
-            selected: {_category},
-            onSelectionChanged: (s) => setState(() => _category = s.first),
-          ),
+          if (!widget.lockCategory) ...[
+            const SizedBox(height: 20),
+            Text('Type', style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: 8),
+            SegmentedButton<TripCategory?>(
+              segments: const [
+                ButtonSegment(value: null, label: Text('All')),
+                ButtonSegment(
+                  value: TripCategory.business,
+                  label: Text('Business'),
+                ),
+                ButtonSegment(
+                  value: TripCategory.personal,
+                  label: Text('Personal'),
+                ),
+                ButtonSegment(
+                  value: TripCategory.unclassified,
+                  label: Text('Unset'),
+                ),
+              ],
+              selected: {_category},
+              onSelectionChanged: (s) => setState(() => _category = s.first),
+            ),
+          ],
           const SizedBox(height: 24),
           Row(
             children: [
-              TextButton(
-                onPressed: () =>
-                    Navigator.pop(context, TripFilterSelection.none),
-                child: const Text('Clear'),
-              ),
+              if (!widget.lockCategory)
+                TextButton(
+                  onPressed: () =>
+                      Navigator.pop(context, TripFilterSelection.none),
+                  child: const Text('Clear'),
+                ),
               const Spacer(),
               FilledButton(
                 onPressed: () => Navigator.pop(
                   context,
                   TripFilterSelection(
-                    category: _category,
+                    category: widget.lockCategory
+                        ? widget.initial.category
+                        : _category,
                     datePreset: _datePreset,
                     customRange: _customRange,
                   ),
