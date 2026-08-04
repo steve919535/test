@@ -13,6 +13,7 @@ class DashboardScreen extends StatelessWidget {
     final repo = context.watch<TripRepository>();
     final now = DateTime.now();
     final monthStart = DateTime(now.year, now.month);
+    final yearStart = DateTime(now.year);
 
     final monthBusinessKm = repo.totalKm(
       category: TripCategory.business,
@@ -22,8 +23,17 @@ class DashboardScreen extends StatelessWidget {
       category: TripCategory.personal,
       from: monthStart,
     );
+    final yearBusinessKm = repo.totalKm(
+      category: TripCategory.business,
+      from: yearStart,
+    );
+    final yearPersonalKm = repo.totalKm(
+      category: TripCategory.personal,
+      from: yearStart,
+    );
     final allBusinessKm = repo.totalKm(category: TripCategory.business);
     final allPersonalKm = repo.totalKm(category: TripCategory.personal);
+    final totalTripCount = repo.tripCount();
     final unclassifiedCount = repo.tripCount(
       category: TripCategory.unclassified,
     );
@@ -57,6 +67,27 @@ class DashboardScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 24),
+          Text('${now.year}', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _BigStat(
+                  label: 'Business km this year',
+                  value: yearBusinessKm,
+                  emphasize: true,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _BigStat(
+                  label: 'Personal km this year',
+                  value: yearPersonalKm,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
           Text('All time', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           Row(
@@ -73,6 +104,12 @@ class DashboardScreen extends StatelessWidget {
                 child: _BigStat(label: 'Personal km', value: allPersonalKm),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          _BigStat(
+            label: 'Number of trips',
+            value: totalTripCount.toDouble(),
+            isCount: true,
           ),
           if (unclassifiedCount > 0) ...[
             const SizedBox(height: 24),
@@ -100,11 +137,16 @@ class _BigStat extends StatelessWidget {
     required this.label,
     required this.value,
     this.emphasize = false,
+    this.isCount = false,
   });
 
   final String label;
   final double value;
   final bool emphasize;
+
+  /// When true, [value] is shown as a whole number (e.g. a trip count)
+  /// rather than a "X.X km" distance.
+  final bool isCount;
 
   @override
   Widget build(BuildContext context) {
@@ -124,7 +166,9 @@ class _BigStat extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '${value.toStringAsFixed(1)} km',
+              isCount
+                  ? value.toInt().toString()
+                  : '${value.toStringAsFixed(1)} km',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 color: emphasize ? scheme.onPrimaryContainer : null,
                 fontWeight: FontWeight.bold,
