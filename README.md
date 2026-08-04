@@ -16,6 +16,8 @@ server, no subscription.
   without tapping it).
 - **Dashboard** with business/personal kilometre totals for the current
   month and all time.
+- **Filter the trip list** by date range (all time / this month / this year /
+  custom) and type (Business / Personal / Unclassified).
 - **Local storage only** — trips live in an on-device SQLite database.
 - **CSV and PDF export**, filterable by date range and category, shared
   through the OS share sheet for tax time.
@@ -79,6 +81,7 @@ lib/
     notification_service.dart      trip-completed notification + tap routing
     export_service.dart            CSV / PDF generation + share sheet
   ui/                               screens (Trips, Dashboard, Settings)
+    trips/widgets/trip_filter_sheet.dart   date-range + type filter used by the Trips list
 ```
 
 ## Running it

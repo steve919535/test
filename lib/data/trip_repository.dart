@@ -182,7 +182,7 @@ class TripRepository extends ChangeNotifier {
   // --- Aggregates for the dashboard, computed over the in-memory cache ---
 
   double totalKm({TripCategory? category, DateTime? from, DateTime? to}) {
-    return _filtered(
+    return filteredTrips(
       category: category,
       from: from,
       to: to,
@@ -190,14 +190,21 @@ class TripRepository extends ChangeNotifier {
   }
 
   int tripCount({TripCategory? category, DateTime? from, DateTime? to}) {
-    return _filtered(category: category, from: from, to: to).length;
+    return filteredTrips(category: category, from: from, to: to).length;
   }
 
-  List<Trip> _filtered({TripCategory? category, DateTime? from, DateTime? to}) {
+  /// Closed trips matching [category] (if given) whose [Trip.startTime]
+  /// falls in `[from, to)` (either bound omitted means unbounded). Backs
+  /// both the dashboard aggregates and the Trips screen's filter bar.
+  List<Trip> filteredTrips({
+    TripCategory? category,
+    DateTime? from,
+    DateTime? to,
+  }) {
     return _trips.where((t) {
       if (category != null && t.category != category) return false;
       if (from != null && t.startTime.isBefore(from)) return false;
-      if (to != null && t.startTime.isAfter(to)) return false;
+      if (to != null && !t.startTime.isBefore(to)) return false;
       return true;
     }).toList();
   }
