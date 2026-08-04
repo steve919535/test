@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/format.dart';
 import '../../data/trip.dart';
 import '../../data/trip_repository.dart';
 
@@ -91,11 +92,20 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: _StatCard(
-                  label: 'Recorded',
-                  value: trip.autoDetected ? 'Automatically' : 'Manually',
+                  label: 'Duration',
+                  value: trip.duration == null
+                      ? 'In progress'
+                      : formatDuration(trip.duration!),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          _StatCard(
+            label: 'Recorded',
+            value: trip.autoDetected
+                ? 'Automatically detected'
+                : 'Entered manually',
           ),
           const SizedBox(height: 24),
           Text('Category', style: Theme.of(context).textTheme.labelLarge),

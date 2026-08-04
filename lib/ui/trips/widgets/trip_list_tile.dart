@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/format.dart';
 import '../../../data/trip.dart';
 import '../../theme.dart';
 
@@ -44,7 +45,7 @@ class TripListTile extends StatelessWidget {
       subtitle: Text(
         trip.isOpen
             ? 'Started ${timeFmt.format(trip.startTime)}'
-            : '${timeFmt.format(trip.startTime)} – ${timeFmt.format(trip.endTime!)}',
+            : '${timeFmt.format(trip.startTime)} – ${timeFmt.format(trip.endTime!)} · ${formatDuration(trip.duration!)}',
       ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,

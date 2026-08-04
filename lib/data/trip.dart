@@ -55,6 +55,11 @@ class Trip {
 
   double get distanceKm => distanceMeters / 1000;
 
+  /// Journey duration. `null` while the trip is still open (no [endTime]
+  /// yet) rather than falling back to "now", since an open trip's duration
+  /// keeps changing and isn't a fact about the trip until it's closed.
+  Duration? get duration => endTime?.difference(startTime);
+
   Trip copyWith({
     int? id,
     DateTime? startTime,
