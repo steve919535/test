@@ -8,8 +8,12 @@ server, no subscription.
 
 - **Automatic trip start/end detection** from GPS speed, running in the
   background even when the app isn't open.
+- **A notification the moment a trip ends**, prompting Business or Personal;
+  tapping it jumps straight to that trip (works whether the app is
+  backgrounded or fully closed).
 - **Business / Personal** categorization per trip (plus an "unclassified"
-  state for trips awaiting review).
+  state for trips awaiting review, in case a notification is dismissed
+  without tapping it).
 - **Dashboard** with business/personal kilometre totals for the current
   month and all time.
 - **Local storage only** — trips live in an on-device SQLite database.
@@ -72,6 +76,7 @@ lib/
     tracking_controller.dart       start/stop facade, permissions
     location_settings.dart         per-platform GPS settings
     geocoding_service.dart         best-effort reverse geocoding
+    notification_service.dart      trip-completed notification + tap routing
     export_service.dart            CSV / PDF generation + share sheet
   ui/                               screens (Trips, Dashboard, Settings)
 ```
@@ -97,11 +102,33 @@ work without the second grant.
 
 - **Android** (`android/app/src/main/AndroidManifest.xml`): fine/coarse/background
   location, `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_LOCATION`,
-  notifications (required on Android 13+ to show the foreground-service
-  notification), and an optional battery-optimization exemption request
-  surfaced in Settings.
+  notifications (required on Android 13+ both for the foreground-service
+  notification and the trip-completed alert), and an optional
+  battery-optimization exemption request surfaced in Settings.
 - **iOS** (`ios/Runner/Info.plist`): `NSLocationAlwaysAndWhenInUseUsageDescription`
-  and `UIBackgroundModes: [location]`.
+  and `UIBackgroundModes: [location]`. Notification permission (alert/badge/sound)
+  is requested separately at runtime the first time the app initializes.
+
+### Trip-completed notifications
+
+`flutter_local_notifications` needs a bit of native wiring beyond the Dart
+side:
+
+- **Android**: `android/app/build.gradle.kts` enables core library
+  desugaring (`isCoreLibraryDesugaringEnabled` + the `desugar_jdk_libs`
+  dependency) and `multiDexEnabled`, both required by the plugin regardless
+  of whether notifications are scheduled or shown immediately (which is all
+  this app does).
+- **iOS**: `ios/Runner/AppDelegate.swift` sets
+  `UNUserNotificationCenter.current().delegate` and registers the plugin's
+  background-isolate plugin registrant callback, both required for the app
+  to receive notification taps.
+
+Showing the notification itself happens wherever a trip finishes: inside the
+Android foreground-service isolate, or the iOS main isolate. Both call
+`NotificationService.instance` independently — each isolate has its own copy
+of that singleton and must `init()` the plugin itself before `show()` will
+work there.
 
 ## Reverse geocoding and "offline"
 

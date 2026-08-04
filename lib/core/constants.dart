@@ -52,3 +52,9 @@ const String kForegroundTaskChannelName = 'Trip tracking';
 const int kForegroundServiceId = 4001;
 
 const String kPrefsTrackingEnabled = 'tracking_enabled';
+
+/// Separate, higher-importance channel from the silent foreground-service
+/// notification: this one is the actual "a trip finished, come categorize
+/// it" alert, so it should make a sound and show a heads-up banner.
+const String kTripCompletedChannelId = 'mileage_tracker_trip_completed';
+const String kTripCompletedChannelName = 'Trip completed';

@@ -9,6 +9,7 @@ import '../core/constants.dart';
 import '../data/trip_repository.dart';
 import 'background_task_handler.dart';
 import 'location_settings.dart';
+import 'notification_service.dart';
 import 'trip_detection_engine.dart';
 
 enum TrackingStartResult { success, locationServicesDisabled, permissionDenied }
@@ -32,6 +33,8 @@ class TrackingController extends ChangeNotifier {
   bool get isRunning => _isRunning;
 
   Future<void> init() async {
+    await NotificationService.instance.init();
+
     if (Platform.isAndroid) {
       FlutterForegroundTask.initCommunicationPort();
       FlutterForegroundTask.addTaskDataCallback(_onTaskData);
@@ -110,6 +113,8 @@ class TrackingController extends ChangeNotifier {
     } else {
       final engine = _iosEngine ?? TripDetectionEngine(_repository);
       engine.onTripChanged = _repository.load;
+      engine.onTripCompleted =
+          NotificationService.instance.showTripCompletedNotification;
       _iosEngine = engine;
       await engine.start(
         Geolocator.getPositionStream(

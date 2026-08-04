@@ -107,6 +107,21 @@ class TripRepository extends ChangeNotifier {
     await db.delete('trips', where: 'id = ?', whereArgs: [id]);
   }
 
+  /// Direct DB lookup by id, bypassing the in-memory cache. Used right after
+  /// a trip is closed (possibly from a throwaway repository instance that's
+  /// never called [load]) to get the finished trip's full row for the
+  /// trip-completed notification.
+  Future<Trip?> getById(int id) async {
+    final db = await _database;
+    final rows = await db.query(
+      'trips',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : Trip.fromMap(rows.first);
+  }
+
   // --- Used by the UI (always the main isolate) ---
 
   Future<void> insertManualTrip(Trip trip) async {

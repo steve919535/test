@@ -42,6 +42,11 @@ class TripDetectionEngine {
   /// caller can react (e.g. tell the main isolate to refresh its UI).
   void Function()? onTripChanged;
 
+  /// Invoked specifically when a trip is confirmed finished and saved
+  /// (never for a discarded noise trip), with the finished trip's full
+  /// record -- e.g. to fire a "categorize this trip" notification.
+  void Function(Trip trip)? onTripCompleted;
+
   Future<void> start(Stream<Position> positions) async {
     final open = await _repository.getOpenTrip();
     if (open != null && open.id != null) {
@@ -191,6 +196,8 @@ class TripDetectionEngine {
         endLat: last.latitude,
         endLng: last.longitude,
       );
+      final finished = await _repository.getById(id);
+      if (finished != null) onTripCompleted?.call(finished);
     }
 
     _openTripId = null;

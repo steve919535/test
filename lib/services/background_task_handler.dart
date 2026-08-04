@@ -3,6 +3,7 @@ import 'package:geolocator/geolocator.dart';
 
 import '../data/trip_repository.dart';
 import 'location_settings.dart';
+import 'notification_service.dart';
 import 'trip_detection_engine.dart';
 
 /// Entry point for the Android foreground-service isolate.
@@ -25,10 +26,17 @@ class TripTrackingTaskHandler extends TaskHandler {
 
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
+    // This isolate has never touched the notifications plugin before, so it
+    // needs its own initialize() call before show() will work here.
+    await NotificationService.instance.init();
+
     final repository = TripRepository();
     final engine = TripDetectionEngine(repository);
     engine.onTripChanged = () {
       FlutterForegroundTask.sendDataToMain('trips_updated');
+    };
+    engine.onTripCompleted = (trip) {
+      NotificationService.instance.showTripCompletedNotification(trip);
     };
     _engine = engine;
 
